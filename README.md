@@ -22,3 +22,16 @@ You can discover what GATT services a device broadcasts using the Chrome Bluetoo
   - Note that the BTLE service is the one with UUID of `e659f300-ea98-11e3-ac10-0800200c9a66`
 - Check out https://github.com/kariudo/onewheel-bluetooth/blob/master/onewheel/characteristics.py for known characteristics
 - Check out https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py for the unlock flow implementation
+
+## Status
+
+The Onewheel can be paired with and its services and their characteristics can be discovered using the
+Chrome Bluetooth Internals tab.
+
+The unlock process is being worked on, based on the work of [@kariudo](https://github.com/kariudo/onewheel-bluetooth).
+Right now the UART read characteristics doesn't seem to emit any events, but it is possible that I am just missing
+them because I listed to all the characteristics after enumerating them and it takes a bit of time.
+The next step is to comment out the code for displaying all the characteristics and notifying about their changes
+(which doesn't work right now anyway, presumable because of the unlock not being completed) and instead subscribe
+directly to the UART read characteristic changes. If that works, rip @kariudo's code and implement the unlock flow.
+Afterwards we should start getting reads on the characteristics properly.
