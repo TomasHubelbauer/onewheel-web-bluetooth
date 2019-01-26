@@ -1,3 +1,4 @@
+// Note that you can unpair a previously paired OW in the BT internals tab: chrome://bluetooth-internals/#devices
 window.addEventListener('load', _ => {
   // Note that Web Blueooth must be initiated from a user gesture for security reasons
   const gestureButton = document.createElement('button');
