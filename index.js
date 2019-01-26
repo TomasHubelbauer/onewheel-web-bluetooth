@@ -28,6 +28,8 @@ window.addEventListener('load', _ => {
     const service = await gattServer.getPrimaryService('e659f300-ea98-11e3-ac10-0800200c9a66');
     const characteristics = await service.getCharacteristics();
     for (let characteristic of characteristics) {
+      window[characteristic + characteristic.uuid.replace(/-/g, '')] = characteristic;
+      
       const characteristicDiv = document.createElement('div');
       characteristicDiv.textContent = `${characteristic.uuid} ${characteristic.value}`;      
       document.body.appendChild(characteristicDiv);
@@ -38,7 +40,9 @@ window.addEventListener('load', _ => {
       });
     }
     
-    console.log(service);
+    window.service = service;
+    console.log('service is at window.service');
+    console.log('characteristics are at window.characteristic{uuid}');
   });
   
   document.body.appendChild(gestureButton);
