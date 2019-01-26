@@ -25,6 +25,20 @@ window.addEventListener('load', _ => {
     
     const gattServer = await bluetoothDevice.gatt.connect();
     const service = await gattServer.getPrimaryService('e659f300-ea98-11e3-ac10-0800200c9a66');
+    const characteristics = await service.getCharacteristics();
+    for (let characteristic of characteristics) {
+      const characteristicDiv = document.createElement('div');
+      characteristicDiv.textContent = `${characteristic.uuid} ${characteristic.value}`;      
+      document.body.appendChild(characteristicDiv);
+      
+      characteristic.addEventListener('characteristicvaluechanged', event => {
+        characteristicDiv.textContent += ' changed ';
+        console.log(event);
+      });
+    }
+    
     console.log(service);
   });
+  
+  document.body.appendChild(gestureButton);
 });
