@@ -23,6 +23,7 @@ window.addEventListener('load', _ => {
       ]
     });
     
+    // TODO: Implement the unlock as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
     const gattServer = await bluetoothDevice.gatt.connect();
     const service = await gattServer.getPrimaryService('e659f300-ea98-11e3-ac10-0800200c9a66');
     const characteristics = await service.getCharacteristics();
