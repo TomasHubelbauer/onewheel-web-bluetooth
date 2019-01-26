@@ -35,3 +35,5 @@ The next step is to comment out the code for displaying all the characteristics 
 (which doesn't work right now anyway, presumable because of the unlock not being completed) and instead subscribe
 directly to the UART read characteristic changes. If that works, rip @kariudo's code and implement the unlock flow.
 Afterwards we should start getting reads on the characteristics properly.
+
+[Here's a quick tutorial on using Web Bluetooth in Chrome](https://developers.google.com/web/updates/2015/07/interact-with-ble-devices-on-the-web). It is useful for mapping the Python Bluetooth GATT API to the Web Bluetooth one.
