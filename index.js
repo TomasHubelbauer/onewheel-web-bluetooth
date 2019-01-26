@@ -43,6 +43,10 @@ window.addEventListener('load', _ => {
     window.service = service;
     console.log('service is at window.service');
     console.log('characteristics are at window.characteristic{uuid}');
+    
+    console.log('Unlock time - listening for the UART read characteristic');
+    const uartReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
+    uartReadCharacteristic.addEventListener('characteristicvaluechanged', console.log);
   });
   
   document.body.appendChild(gestureButton);
