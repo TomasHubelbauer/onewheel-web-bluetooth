@@ -27,6 +27,7 @@ window.addEventListener('load', _ => {
     }
     
     // TODO: Finalize the unlock flow as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
+    return;
     
     console.log('Obtaining and setting the firmware revision characteristic');
     const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
@@ -35,11 +36,19 @@ window.addEventListener('load', _ => {
     
     console.log('Obtaining the UART read characteristic');
     const uartReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
-    uartReadCharacteristic.addEventListener('characteristicvaluechanged', console.log);
-    uartReadCharacteristic.oncharacteristicvaluechanged = console.log;
     
     console.log('Writing the firmware revision');
     await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
+    
+    console.log('Trying to listen only after the firmware write');
+    uartReadCharacteristic.addEventListener('characteristicvaluechanged', event => {
+      debugger;
+      console.log(event);
+    });
+    uartReadCharacteristic.oncharacteristicvaluechanged = event => {
+      debugger;
+      console.log(event);
+    };
     
     // Print all characteristics with their changes for debugging
     console.log('Fetching all characteristics for printing');
