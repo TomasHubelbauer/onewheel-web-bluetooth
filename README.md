@@ -37,3 +37,7 @@ directly to the UART read characteristic changes. If that works, rip @kariudo's 
 Afterwards we should start getting reads on the characteristics properly.
 
 [Here's a quick tutorial on using Web Bluetooth in Chrome](https://developers.google.com/web/updates/2015/07/interact-with-ble-devices-on-the-web). It is useful for mapping the Python Bluetooth GATT API to the Web Bluetooth one.
+
+- [ ] Try the Python app and see if that connects successfully, if yes, try to find difference between its impl and mine
+  - If not, check out the UWP version
+  - Also try completely clearing remembered BT devices, the forgetting doesn't seem to work, it's still paired
