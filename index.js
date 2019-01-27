@@ -19,7 +19,12 @@ window.addEventListener('load', _ => {
     console.log('Connecting the GATT server');
     const gattServer = await bluetoothDevice.gatt.connect();
     console.log('Obtaining the service');
-    const service = await gattServer.getPrimaryService('e659f300-ea98-11e3-ac10-0800200c9a66');
+    let service;
+    try {
+      service = await gattServer.getPrimaryService('e659f300-ea98-11e3-ac10-0800200c9a66');
+    } catch (error) {
+      debugger;
+    }
     
     // TODO: Finalize the unlock flow as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
     
