@@ -26,9 +26,6 @@ window.addEventListener('load', _ => {
       debugger;
     }
     
-    // TODO: Finalize the unlock flow as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
-    return;
-    
     console.log('Obtaining and setting the firmware revision characteristic');
     const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
     const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
@@ -49,6 +46,9 @@ window.addEventListener('load', _ => {
       debugger;
       console.log(event);
     };
+    
+    // TODO: Finalize the unlock flow as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
+    return;
     
     // Print all characteristics with their changes for debugging
     console.log('Fetching all characteristics for printing');
