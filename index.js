@@ -30,6 +30,7 @@ window.addEventListener('load', _ => {
     console.log('Obtaining and setting the firmware revision characteristic');
     const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
     const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
+    console.log('Obtained the firmware revision characteristic value:', firmwareRevision);
     await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
 
     // Print all characteristics with their changes for debugging
