@@ -44,3 +44,4 @@ Afterwards we should start getting reads on the characteristics properly.
   - https://github.com/COM8/UWP-Onewheel/blob/master/OnewheelBluetooth/Classes/OnewheelUnlockHelper.cs
   - https://github.com/ponewheel/android-ponewheel/issues/86#issuecomment-440809066
   - Use Python from WSL or in a VM to avoid installing on the host
+  - You can get the MAC address of the OW in `chrome://bluetooth-internals` on the Devices page in the Address column
