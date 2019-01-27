@@ -17,9 +17,15 @@ window.addEventListener('load', _ => {
     
     const gattServer = await bluetoothDevice.gatt.connect();
     const service = await gattServer.getPrimaryService('e659f300-ea98-11e3-ac10-0800200c9a66');
-    const characteristics = await service.getCharacteristics();
-    
+    const uartReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
+    // TODO: Finalize the unlock flow as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
+    console.log('Unlock time - listening for the UART read characteristic');
+    const uartReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
+    uartReadCharacteristic.addEventListener('characteristicvaluechanged', console.log);
+    uartReadCharacteristic.oncharacteristicvaluechanged = console.log;
+
     // Print all characteristics with their changes for debugging
+    const characteristics = await service.getCharacteristics();
     for (let characteristic of characteristics) {
       window['characteristic' + characteristic.uuid.replace(/-/g, '')] = characteristic;
       
@@ -36,11 +42,6 @@ window.addEventListener('load', _ => {
     window.service = service;
     console.log('service is at window.service');
     console.log('characteristics are at window.characteristic{uuid}');
-    
-    // TODO: Finalize the unlock flow as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
-    console.log('Unlock time - listening for the UART read characteristic');
-    const uartReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
-    uartReadCharacteristic.addEventListener('characteristicvaluechanged', console.log);
   });
   
   document.body.appendChild(gestureButton);
