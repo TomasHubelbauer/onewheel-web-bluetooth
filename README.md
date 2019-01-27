@@ -41,3 +41,5 @@ Afterwards we should start getting reads on the characteristics properly.
 - [ ] Try the Python app and see if that connects successfully, if yes, try to find difference between its impl and mine
   - If not, check out the UWP version
   - Also try completely clearing remembered BT devices, the forgetting doesn't seem to work, it's still paired
+  - https://github.com/COM8/UWP-Onewheel/blob/master/OnewheelBluetooth/Classes/OnewheelUnlockHelper.cs
+  - https://github.com/ponewheel/android-ponewheel/issues/86#issuecomment-440809066
