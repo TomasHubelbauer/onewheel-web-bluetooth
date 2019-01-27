@@ -5,7 +5,7 @@ window.addEventListener('load', _ => {
   gestureButton.textContent = 'Pair';
   gestureButton.addEventListener('click', async _ => {
     // Note that Onewheels show up under *Onewheel* before pairing and *ow#######* once paired
-    // TODO: Extend the filters to also see an unpaired Onewheel (need to unpair the existing one for that)
+    // TODO: Extend the filters to also see an unpaired Onewheel (need to unpair the existing one for that - Forget doesn't work)
     console.log('Obtaining the device');
     const bluetoothDevice = await navigator.bluetooth.requestDevice({
       filters: [ { namePrefix: 'ow' } ],
@@ -23,19 +23,19 @@ window.addEventListener('load', _ => {
     
     // TODO: Finalize the unlock flow as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
     
+    console.log('Obtaining and setting the firmware revision characteristic');
+    const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
+    const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
+    console.log('Obtained the firmware revision characteristic value:', firmwareRevision);
+    
     console.log('Obtaining the UART read characteristic');
     const uartReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
     uartReadCharacteristic.addEventListener('characteristicvaluechanged', console.log);
     uartReadCharacteristic.oncharacteristicvaluechanged = console.log;
     
-    console.log('Obtaining and setting the firmware revision characteristic');
-    const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
-    const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
-    console.log('Obtained the firmware revision characteristic value:', firmwareRevision);
+    console.log('Writing the firmware revision');
     await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
     
-    
-
     // Print all characteristics with their changes for debugging
     console.log('Fetching all characteristics for printing');
     const characteristics = await service.getCharacteristics();
