@@ -26,12 +26,15 @@ window.addEventListener('load', _ => {
     console.log('Obtaining the UART read characteristic');
     const uartReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
     uartReadCharacteristic.addEventListener('characteristicvaluechanged', console.log);
+    uartReadCharacteristic.oncharacteristicvaluechanged = console.log;
     
     console.log('Obtaining and setting the firmware revision characteristic');
     const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
     const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
     console.log('Obtained the firmware revision characteristic value:', firmwareRevision);
     await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
+    
+    
 
     // Print all characteristics with their changes for debugging
     console.log('Fetching all characteristics for printing');
@@ -47,6 +50,8 @@ window.addEventListener('load', _ => {
         characteristicDiv.textContent += ' changed ';
         console.log(event);
       });
+      
+      characteristic.oncharacteristicvaluechanged = console.log;
     }
     
     window.service = service;
