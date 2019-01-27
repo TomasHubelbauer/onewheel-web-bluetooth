@@ -38,10 +38,12 @@ Afterwards we should start getting reads on the characteristics properly.
 
 [Here's a quick tutorial on using Web Bluetooth in Chrome](https://developers.google.com/web/updates/2015/07/interact-with-ble-devices-on-the-web). It is useful for mapping the Python Bluetooth GATT API to the Web Bluetooth one.
 
-- [ ] Try the Python app and see if that connects successfully, if yes, try to find difference between its impl and mine
-  - If not, check out the UWP version
-  - Also try completely clearing remembered BT devices, the forgetting doesn't seem to work, it's still paired
-  - https://github.com/COM8/UWP-Onewheel/blob/master/OnewheelBluetooth/Classes/OnewheelUnlockHelper.cs
-  - https://github.com/ponewheel/android-ponewheel/issues/86#issuecomment-440809066
-  - Use Python from WSL or in a VM to avoid installing on the host
-  - You can get the MAC address of the OW in `chrome://bluetooth-internals` on the Devices page in the Address column
+You can get the MAC address of the OW in `chrome://bluetooth-internals` on the Devices page in the Address column
+
+- [ ] Try the Python script to see if it works once fixed [this issue](https://github.com/kariudo/onewheel-bluetooth/issues/2)
+- [ ] Try the UWP app to see if it works
+- [ ] Try completely clearing remembered BT devices somehow, the Forget action doesn't seem to work, it's still paired in Chrome
+
+- https://github.com/COM8/UWP-Onewheel/blob/master/OnewheelBluetooth/Classes/OnewheelUnlockHelper.cs
+- https://github.com/ponewheel/android-ponewheel/issues/86#issuecomment-440809066
+  
