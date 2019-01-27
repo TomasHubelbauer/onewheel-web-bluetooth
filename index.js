@@ -19,9 +19,13 @@ window.addEventListener('load', _ => {
     const service = await gattServer.getPrimaryService('e659f300-ea98-11e3-ac10-0800200c9a66');
     // TODO: Finalize the unlock flow as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
     console.log('Unlock time - listening for the UART read characteristic');
+    
     const uartReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
     uartReadCharacteristic.addEventListener('characteristicvaluechanged', console.log);
-    uartReadCharacteristic.oncharacteristicvaluechanged = console.log;
+    
+    const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
+    const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
+    await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
 
     // Print all characteristics with their changes for debugging
     const characteristics = await service.getCharacteristics();
