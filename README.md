@@ -43,3 +43,4 @@ Afterwards we should start getting reads on the characteristics properly.
   - Also try completely clearing remembered BT devices, the forgetting doesn't seem to work, it's still paired
   - https://github.com/COM8/UWP-Onewheel/blob/master/OnewheelBluetooth/Classes/OnewheelUnlockHelper.cs
   - https://github.com/ponewheel/android-ponewheel/issues/86#issuecomment-440809066
+  - Use Python from WSL or in a VM to avoid installing on the host
