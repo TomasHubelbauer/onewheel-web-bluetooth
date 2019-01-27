@@ -41,7 +41,7 @@ Afterwards we should start getting reads on the characteristics properly.
 You can get the MAC address of the OW in `chrome://bluetooth-internals` on the Devices page in the Address column
 
 - [ ] Try the Python script to see if it works once fixed [this issue](https://github.com/kariudo/onewheel-bluetooth/issues/2)
-- [ ] Try the UWP app to see if it works
+- [ ] Try the UWP app to see if it works - need VS for this so install on a separate desktop
 - [ ] Try completely clearing remembered BT devices somehow, the Forget action doesn't seem to work, it's still paired in Chrome
 
 - https://github.com/COM8/UWP-Onewheel/blob/master/OnewheelBluetooth/Classes/OnewheelUnlockHelper.cs
