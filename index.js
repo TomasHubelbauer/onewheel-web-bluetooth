@@ -40,7 +40,7 @@ window.addEventListener('load', _ => {
     console.log('Fetching all characteristics for printing');
     const characteristics = await service.getCharacteristics();
     for (let characteristic of characteristics) {
-      window['characteristic' + characteristic.uuid.replace(/-/g, '')] = characteristic;
+      window['characteristic_' + characteristic.uuid.replace(/-/g, '_')] = characteristic;
       
       const characteristicDiv = document.createElement('div');
       characteristicDiv.textContent = `${characteristic.uuid} ${characteristic.value}`;      
