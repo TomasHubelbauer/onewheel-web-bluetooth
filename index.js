@@ -6,6 +6,7 @@ window.addEventListener('load', _ => {
   gestureButton.addEventListener('click', async _ => {
     // Note that Onewheels show up under *Onewheel* before pairing and *ow#######* once paired
     // TODO: Extend the filters to also see an unpaired Onewheel (need to unpair the existing one for that)
+    console.log('Obtaining the device');
     const bluetoothDevice = await navigator.bluetooth.requestDevice({
       filters: [ { namePrefix: 'ow' } ],
       optionalServices: [
@@ -15,19 +16,24 @@ window.addEventListener('load', _ => {
       ]
     });
     
+    console.log('Connecting the GATT server');
     const gattServer = await bluetoothDevice.gatt.connect();
+    console.log('Obtaining the service');
     const service = await gattServer.getPrimaryService('e659f300-ea98-11e3-ac10-0800200c9a66');
-    // TODO: Finalize the unlock flow as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
-    console.log('Unlock time - listening for the UART read characteristic');
     
+    // TODO: Finalize the unlock flow as per https://github.com/kariudo/onewheel-bluetooth/blob/master/readdata.py
+    
+    console.log('Obtaining the UART read characteristic');
     const uartReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
     uartReadCharacteristic.addEventListener('characteristicvaluechanged', console.log);
     
+    console.log('Obtaining and setting the firmware revision characteristic');
     const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
     const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
     await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
 
     // Print all characteristics with their changes for debugging
+    console.log('Fetching all characteristics for printing');
     const characteristics = await service.getCharacteristics();
     for (let characteristic of characteristics) {
       window['characteristic' + characteristic.uuid.replace(/-/g, '')] = characteristic;
