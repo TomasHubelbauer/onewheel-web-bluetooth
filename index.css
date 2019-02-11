@@ -1,3 +1,15 @@
 body {
     font-family: sans-serif;
 }
+
+#statusDiv {
+    white-space: pre;
+}
+
+.characteristicDiv {
+    display: flex;
+}
+
+.characteristicDiv > * {
+    flex: 1;
+}
