@@ -6,7 +6,7 @@ carrying out the unlock mechanism and subscribing to the main service characteri
 This project will be extended to support visual and non-visual (vibrator, speaker)
 indicators of batter level, speed etc.
 
-[**DEMO**](https://tomashubelbauer.github.io/onewheel-web-bluetooth)
+[**DEMO**](https://tomashubelbauer.github.io/onewheel-web-bluetooth) (currently doesn't work because a dependency is HTTP only)
 
 ## How It Works
 
@@ -27,6 +27,8 @@ You can discover what GATT services a device broadcasts using the Chrome Bluetoo
 
 - [ ] Recconect periodically to avoid being locked out of the Onewheel
 - [ ] Find out all the known firmware versions
+- [ ] Fix the MD5 library dependency being HTTP only - probably just shove to the repository if license allows
+  - [ ] Consider simplifying to operate directly on array buffers
 
 ## Related Projects
 
