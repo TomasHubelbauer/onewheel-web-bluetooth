@@ -32,6 +32,7 @@ You can discover what GATT services a device broadcasts using the Chrome Bluetoo
 
 - https://github.com/COM8/UWP-Onewheel
 - https://github.com/kariudo/onewheel-bluetooth
+- https://github.com/drewbaumann/onewheel-web
 
 ## How Does The Unlock Flow Go
 
