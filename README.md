@@ -31,6 +31,7 @@ You can discover what GATT services a device broadcasts using the Chrome Bluetoo
 ## Related Projects
 
 - https://github.com/COM8/UWP-Onewheel
+- https://github.com/ponewheel/android-ponewheel
 - https://github.com/kariudo/onewheel-bluetooth
 - https://github.com/drewbaumann/onewheel-web
 
