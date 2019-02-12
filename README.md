@@ -82,7 +82,7 @@ const responseText = responseBytes.map(b => b.toString(16)).join(' ');
 console.log('response', responseText);
 let checkByte = 0;
 for (let index = 0; index < responseBytes.length; index++) {
-checkByte = responseBytes[index] ^ checkByte;
+  checkByte = responseBytes[index] ^ checkByte;
 }
 
 console.log('check byte', checkByte.toString(16));
