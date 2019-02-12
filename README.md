@@ -1,4 +1,4 @@
-# Onewheeel Web Bluetooth
+# Onewheel Web Bluetooth
 
 This repository demonstrates the use of Web Bluetooth for connecting to a Onewheel,
 carrying out the unlock mechanism and subscribing to the main service characteristics for debugging.
