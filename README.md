@@ -6,7 +6,7 @@ carrying out the unlock mechanism and subscribing to the main service characteri
 This project will be extended to support visual and non-visual (vibrator, speaker)
 indicators of batter level, speed etc.
 
-[**DEMO**](https://tomashubelbauer.github.io/onewheel-web-bluetooth) (currently doesn't work because a dependency is HTTP only)
+[**DEMO**](https://tomashubelbauer.github.io/onewheel-web-bluetooth)
 
 ## How It Works
 
