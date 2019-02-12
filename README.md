@@ -25,10 +25,8 @@ You can discover what GATT services a device broadcasts using the Chrome Bluetoo
 
 ## What Is Missing
 
-- [ ] Recconect periodically to avoid being locked out of the Onewheel
+- [ ] Finish the periodical unlock flow
 - [ ] Find out all the known firmware versions
-- [ ] Fix the MD5 library dependency being HTTP only - probably just shove to the repository if license allows
-  - [ ] Consider simplifying to operate directly on array buffers
 
 ## Related Projects
 
