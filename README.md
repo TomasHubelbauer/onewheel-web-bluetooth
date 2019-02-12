@@ -10,23 +10,18 @@ indicators of batter level, speed etc.
 
 ## How It Works
 
-The way this works is that Web Bluetooth is used to find a turned on Onewheel and then pair with it.
-While pairing, the application asks the device to provide several GATT services.
-
-You can discover what GATT services a device broadcasts using the Chrome Bluetooth Internals tab:
-
-- Go to `chrome://bluetooth-internals/#devices`
-- Pair the Onewheel if not paired previously
-- Click on *Inspect* next to the device you are interested in, Onewheels follow the `ow######` naming pattern
-- Click on *Forget* in case you want to try the whole flow again: unpair and then pair
-  - Note that this action is disabled if you are not connected to the GATT server (using *Inspect*)
-- Observe the GATT services listed with their characteristics listed upon a click for expansion
-  - Note that the BTLE service is the one with UUID of `e659f300-ea98-11e3-ac10-0800200c9a66`
+- Web Bluetooth is used to find and pair with a Onewheel over its GATT server
+- The main service is found by the reverse-engineered UUID `e659f300-ea98-11e3-ac10-0800200c9a66`
+- All services and their characteristics can be inspected using `chrome://bluetooth-internals`
+- UART serial characteristics are used to carry out an unlock procedure described in detail below
+- All Web Bluetooth characteristics are thus made available for reading/writing/subscription
 
 ## What Is Missing
 
 - [ ] Finish the periodical unlock flow
 - [ ] Find out all the known firmware versions
+- [ ] Use hex literals in the code
+- [ ] Inline the MD5 cycle functions `ff`, `gg`, `hh` and `ii`
 
 ## Related Projects
 
@@ -37,22 +32,27 @@ You can discover what GATT services a device broadcasts using the Chrome Bluetoo
 
 ## How Does The Unlock Flow Go
 
-0. https://github.com/ponewheel/android-ponewheel/issues/86
+Kudos to the good people of [this pOnewheel issue thread](https://github.com/ponewheel/android-ponewheel/issues/86)
+who figured this stuff out.
+
 1. Read the value of the firmware revision characteristic (`e659f311-ea98-11e3-ac10-0800200c9a66`)
-2. Check that the firmware is 0x10 0x26 for the Onewheel+ XR on the Gemini firmware
+2. Check that the firmware revision characteristic value is known (see the code)
 3. Subscribe to the UART serial read characteristic (`e659f3fe-ea98-11e3-ac10-0800200c9a66`)
-4. Write the value read from the firmware revision characteristic to the firmware revision characteristic
-5. Keep handling the multiple the UART serial read characteristic callbacks until we collect 20 bytes
+4. Write the firmware revision characteristic value back to the firmware revision characteristic to initiate unlocking
+5. Collect the UART serial read characteristic value change callbacks until 20 challenge bytes are gathered
 6. Unsubscribe from the UART serial read characteristic
-7. Verify that the first three bytes of the 20 byte challenge value match the signature we know how to encode: 0x43 0x52 0x58
-8. Prepare a buffer for the challenge response and append the sig bytes 0x43 0x52 0x58 to it
-9. Prepare a buffer for MD5 hashing with remaining bytes from the challenge except last (total 16 bytes of the 20)
-10. Append the known password 0xd9 0x25 0x5f 0x0f 0x23 0x35 0x4e 0x19 0ba 0x73 0x9c 0xcd 0xc4 0xa9 0x17 0x65 to the MD5 bufffer
-11. Hash the MD5 buffer and add the resulting MD5 bytes to the response buffer which so far contains the 3 signature bytes
-12. Calculate the check byte and add it to the response: `checkByte = 0; for (let i = 0; i < response.length; i++) checkByte = response[i] ^ checkByte;`
-13. Write the response to the UART serial write characteristic
-14. Subscribe to any interesting characteristics you care about
-15. Keep unlocking every less than 24 seconds otherwise the Onewheel locks up
+7. Verify that the first three bytes of the 20 byte challenge value match the known signature `0x43 0x52 0x58`
+8. Prepare a challenge response byte array and append the signature bytes `0x43 0x52 0x58` to it
+9. Prepare a password byte array prefilled with the remaining 16 challenge bytes ignoring the last check byte
+10. Append the known password `0xd9 0x25 0x5f 0x0f 0x23 0x35 0x4e 0x19 0ba 0x73 0x9c 0xcd 0xc4 0xa9 0x17 0x65` to it
+11. Compute the MD5 cycle on the password byte array and append the resulting byte array to the response byte array
+12. Append the check byte `checkByte = 0; for (let i = 0; i < response.length; i++) checkByte = response[i] ^ checkByte;`
+13. Write the response byte array to the UART serial write characteristic
+
+After carrying out these steps, the Onewheel should unlock and you should be able to read/write/subscribe to any
+service characteristics you like. The list of know characteristics is in the code.
+
+You need to unlock the Onewheel every 24 seconds or less otherwise if will lock you out.
 
 This code demonstrates the correct response derivation from a given challenge:
 
