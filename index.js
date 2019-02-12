@@ -192,12 +192,9 @@ window.addEventListener('load', _ => {
       onStatus(`Joining the challenge sans the signature and check byte ${challenge.slice(3, -1).map(d => '0x' + d.toString(16)).join(' ')} and the known password 0xd9 0x25 0x5f 0x0f 0x23 0x35 0x4e 0x19 0xba 0x73 0x9c 0xcd 0xc4 0xa9 0x17 0x65…`);
       const password = [...challenge.slice(3, -1), 217, 37, 95, 15, 35, 53, 78, 25, 186, 115, 156, 205, 196, 169, 23, 101];
       
-      // Note that the MD5 from http://www.myersdaily.org/joseph/javascript/md5.js, for more info visit http://www.myersdaily.org/joseph/javascript/md5-text.html
       // Note that the challenge and the response both start with the same 3 bytes: 0x43 0x52 0x58
       onStatus(`Hashing the final password ${password.map(d => '0x' + d.toString(16)).join(' ')} into the response…`);
-
-      // TODO: Pull the MD5 function to the repo is the license allows and simplify it to operate directly on byte arrays
-      const response = [...challenge.slice(0, 3), ...md5(password.map(b => String.fromCharCode(b)).join('')).match(/.{2}/g).map(b => Number.parseInt(b, 16))];
+      const response = [...challenge.slice(0, 3), ...md5(password)];
 
       onStatus(`Calculating the check byte from the response ${response.map(d => '0x' + d.toString(16)).join(' ')}…`);
       let checkByte = 0;
@@ -226,3 +223,129 @@ window.addEventListener('load', _ => {
     await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
   }
 });
+
+// This function is an adapted and simplified MD5 hash function which runs only a single cycle and works only for 55 bytes or less
+// It was adapted from http://www.myersdaily.org/joseph/javascript/md5.js, see http://www.myersdaily.org/joseph/javascript/md5-text.html for more info
+// [104, 101, 108, 108, 111] ("hello") => "5d41402abc4b2a76b9719d911017c592"
+function *md5(bytes) {
+  if (bytes.length > 55 || bytes.find(b => !Number.isInteger(b) || b < 0 || b > 255)) {
+      throw new Error(`This MD5 function only works correctly for bytes arrays of 55 bytes or less.`);
+  }
+
+  const state = [1732584193, -271733879, -1732584194, 271733878]
+  const tail = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let i = 0;
+  while (i < bytes.length) {
+      tail[i >> 2] |= bytes[i] << ((i % 4) << 3);
+      i++;
+  }
+
+  tail[i >> 2] |= 0x80 << ((i % 4) << 3);
+  tail[14] = bytes.length * 8;
+
+  let [a, b, c, d] = state;
+  const cmn = (q, a, b, x, s, t) => {
+      a = (((a + q) & 0xFFFFFFFF) + ((x + t) & 0xFFFFFFFF)) & 0xFFFFFFFF;
+      return (((a << s) | (a >>> (32 - s))) + b) & 0xFFFFFFFF;
+  };
+
+  const ff = (a, b, c, d, x, s, t) => cmn((b & c) | ((~b) & d), a, b, x, s, t);
+  a = ff(a, b, c, d, tail[0], 7, -680876936);
+  d = ff(d, a, b, c, tail[1], 12, -389564586);
+  c = ff(c, d, a, b, tail[2], 17, 606105819);
+  b = ff(b, c, d, a, tail[3], 22, -1044525330);
+  a = ff(a, b, c, d, tail[4], 7, -176418897);
+  d = ff(d, a, b, c, tail[5], 12, 1200080426);
+  c = ff(c, d, a, b, tail[6], 17, -1473231341);
+  b = ff(b, c, d, a, tail[7], 22, -45705983);
+  a = ff(a, b, c, d, tail[8], 7, 1770035416);
+  d = ff(d, a, b, c, tail[9], 12, -1958414417);
+  c = ff(c, d, a, b, tail[10], 17, -42063);
+  b = ff(b, c, d, a, tail[11], 22, -1990404162);
+  a = ff(a, b, c, d, tail[12], 7, 1804603682);
+  d = ff(d, a, b, c, tail[13], 12, -40341101);
+  c = ff(c, d, a, b, tail[14], 17, -1502002290);
+  b = ff(b, c, d, a, tail[15], 22, 1236535329);
+
+  const gg = (a, b, c, d, x, s, t) => cmn((b & d) | (c & (~d)), a, b, x, s, t);
+  a = gg(a, b, c, d, tail[1], 5, -165796510);
+  d = gg(d, a, b, c, tail[6], 9, -1069501632);
+  c = gg(c, d, a, b, tail[11], 14, 643717713);
+  b = gg(b, c, d, a, tail[0], 20, -373897302);
+  a = gg(a, b, c, d, tail[5], 5, -701558691);
+  d = gg(d, a, b, c, tail[10], 9, 38016083);
+  c = gg(c, d, a, b, tail[15], 14, -660478335);
+  b = gg(b, c, d, a, tail[4], 20, -405537848);
+  a = gg(a, b, c, d, tail[9], 5, 568446438);
+  d = gg(d, a, b, c, tail[14], 9, -1019803690);
+  c = gg(c, d, a, b, tail[3], 14, -187363961);
+  b = gg(b, c, d, a, tail[8], 20, 1163531501);
+  a = gg(a, b, c, d, tail[13], 5, -1444681467);
+  d = gg(d, a, b, c, tail[2], 9, -51403784);
+  c = gg(c, d, a, b, tail[7], 14, 1735328473);
+  b = gg(b, c, d, a, tail[12], 20, -1926607734);
+
+  const hh = (a, b, c, d, x, s, t) => cmn(b ^ c ^ d, a, b, x, s, t);
+  a = hh(a, b, c, d, tail[5], 4, -378558);
+  d = hh(d, a, b, c, tail[8], 11, -2022574463);
+  c = hh(c, d, a, b, tail[11], 16, 1839030562);
+  b = hh(b, c, d, a, tail[14], 23, -35309556);
+  a = hh(a, b, c, d, tail[1], 4, -1530992060);
+  d = hh(d, a, b, c, tail[4], 11, 1272893353);
+  c = hh(c, d, a, b, tail[7], 16, -155497632);
+  b = hh(b, c, d, a, tail[10], 23, -1094730640);
+  a = hh(a, b, c, d, tail[13], 4, 681279174);
+  d = hh(d, a, b, c, tail[0], 11, -358537222);
+  c = hh(c, d, a, b, tail[3], 16, -722521979);
+  b = hh(b, c, d, a, tail[6], 23, 76029189);
+  a = hh(a, b, c, d, tail[9], 4, -640364487);
+  d = hh(d, a, b, c, tail[12], 11, -421815835);
+  c = hh(c, d, a, b, tail[15], 16, 530742520);
+  b = hh(b, c, d, a, tail[2], 23, -995338651);
+
+  const ii = (a, b, c, d, x, s, t) => cmn(c ^ (b | (~d)), a, b, x, s, t);
+  a = ii(a, b, c, d, tail[0], 6, -198630844);
+  d = ii(d, a, b, c, tail[7], 10, 1126891415);
+  c = ii(c, d, a, b, tail[14], 15, -1416354905);
+  b = ii(b, c, d, a, tail[5], 21, -57434055);
+  a = ii(a, b, c, d, tail[12], 6, 1700485571);
+  d = ii(d, a, b, c, tail[3], 10, -1894986606);
+  c = ii(c, d, a, b, tail[10], 15, -1051523);
+  b = ii(b, c, d, a, tail[1], 21, -2054922799);
+  a = ii(a, b, c, d, tail[8], 6, 1873313359);
+  d = ii(d, a, b, c, tail[15], 10, -30611744);
+  c = ii(c, d, a, b, tail[6], 15, -1560198380);
+  b = ii(b, c, d, a, tail[13], 21, 1309151649);
+  a = ii(a, b, c, d, tail[4], 6, -145523070);
+  d = ii(d, a, b, c, tail[11], 10, -1120210379);
+  c = ii(c, d, a, b, tail[2], 15, 718787259);
+  b = ii(b, c, d, a, tail[9], 21, -343485551);
+
+  state[0] = (a + state[0]) & 0xFFFFFFFF;
+  for (let index = 0; index < 4; index ++) {
+      let byte = state[0] & 0xff;
+      yield byte;
+      state[0] = (state[0] - byte) / 256;
+  }
+
+  state[1] = (b + state[1]) & 0xFFFFFFFF;
+  for (let index = 0; index < 4; index ++) {
+      let byte = state[1] & 0xff;
+      yield byte;
+      state[1] = (state[1] - byte) / 256;
+  }
+
+  state[2] = (c + state[2]) & 0xFFFFFFFF;
+  for (let index = 0; index < 4; index ++) {
+      let byte = state[2] & 0xff;
+      yield byte;
+      state[2] = (state[2] - byte) / 256;
+  }
+
+  state[3] = (d + state[3]) & 0xFFFFFFFF;
+  for (let index = 0; index < 4; index ++) {
+      let byte = state[3] & 0xff;
+      yield byte;
+      state[3] = (state[3] - byte) / 256;
+  }
+}
