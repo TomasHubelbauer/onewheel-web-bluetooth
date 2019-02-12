@@ -74,7 +74,7 @@ console.log('pass', passwordText);
 const toMd5Bytes = [...restBytes, ...passwordBytes];
 const toMd5Text = toMd5Bytes.map(b => b.toString(16)).join(' ');
 console.log('to md5', toMd5Text);
-const fromMd5Bytes = md5(toMd5Bytes.map(b => String.fromCharCode(b)).join('')).match(/.{2}/g).map(b => Number.parseInt(b, 16));
+const fromMd5Bytes = [...md5(toMd5Bytes)];
 const fromMd5Text = fromMd5Bytes.map(b => b.toString(16)).join(' ');
 console.log('from md5', fromMd5Text);
 const responseBytes = [...challengeBytes.slice(0, 3), ...fromMd5Bytes];
