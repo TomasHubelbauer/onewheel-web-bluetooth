@@ -18,10 +18,10 @@ indicators of batter level, speed etc.
 
 ## What Is Missing
 
-- [ ] Finish the periodical unlock flow
-- [ ] Find out all the known firmware versions
-- [ ] Use hex literals in the code
-- [ ] Inline the MD5 cycle functions `ff`, `gg`, `hh` and `ii`
+See `TODO` comments in code.
+
+The unlock mechanism works, but the periodical "reminder" to the board that we are still unlocked fails.
+I have not been able to pin down why that might be.
 
 ## Related Projects
 
