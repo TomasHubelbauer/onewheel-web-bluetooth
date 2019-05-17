@@ -7,7 +7,7 @@ window.addEventListener('load', _ => {
     // Note that Onewheels show up with the following name format: `ow#######`
     // Note the service UUID is reverse engineered and you can use the Chrome Bluetooth internals tab for debugging: chrome://bluetooth-internals/#devices
     report('Obtaining the device…');
-    const bluetoothDevice = await navigator.bluetooth.requestDevice({ filters: [ { namePrefix: 'ow' }, { services: ['e659f300-ea98-11e3-ac10-0800200c9a66'] } ] });
+    const bluetoothDevice = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'ow' }, { services: ['e659f300-ea98-11e3-ac10-0800200c9a66'] }] });
 
     report('Connecting to the GATT server…');
     const gattServer = await bluetoothDevice.gatt.connect();
@@ -30,7 +30,7 @@ window.addEventListener('load', _ => {
 
     report('Subscribing all service characteristics for debugging…');
     const characteristics = await service.getCharacteristics();
-    
+
     for (let characteristic of characteristics) {
       window['characteristic_' + characteristic.uuid.replace(/-/g, '_')] = characteristic;
 
@@ -78,7 +78,7 @@ window.addEventListener('load', _ => {
         case '00002a04-0000-1000-8000-00805f9b34fb': knownName = 'peripherial preferred connection parameters'; break;
         case '00002a05-0000-1000-8000-00805f9b34fb': knownName = 'service changed'; break;
       }
-      
+
       const characteristicDiv = document.createElement('div');
       characteristicDiv.className = 'characteristicDiv';
 
@@ -97,7 +97,7 @@ window.addEventListener('load', _ => {
       } else {
         valueSpan.textContent = 'null';
       }
-      
+
       characteristicDiv.append(valueSpan);
 
       const statusSpan = document.createElement('span');
@@ -105,7 +105,7 @@ window.addEventListener('load', _ => {
       characteristicDiv.append(statusSpan);
 
       document.body.append(characteristicDiv);
-      
+
       try {
         await characteristic.startNotifications();
         characteristic.addEventListener('characteristicvaluechanged', event => {
@@ -114,7 +114,7 @@ window.addEventListener('load', _ => {
             for (let index = 0; index < event.currentTarget.value.byteLength; index++) {
               value.push(event.currentTarget.value.getUint8(index));
             }
-  
+
             valueSpan.textContent = value.map(b => b.toString(16)).join(' ');
           } else {
             valueSpan.textContent = 'null';
@@ -127,7 +127,7 @@ window.addEventListener('load', _ => {
       }
     }
   });
-  
+
   function report(message) {
     if (message === undefined) {
       statusDiv.textContent = '';
@@ -191,10 +191,10 @@ window.addEventListener('load', _ => {
 
       onStatus(`Joining the challenge sans the signature and check byte ${challenge.slice(3, -1).map(d => '0x' + d.toString(16)).join(' ')} and the known password 0xd9 0x25 0x5f 0x0f 0x23 0x35 0x4e 0x19 0xba 0x73 0x9c 0xcd 0xc4 0xa9 0x17 0x65…`);
       const password = [...challenge.slice(3, -1), 217, 37, 95, 15, 35, 53, 78, 25, 186, 115, 156, 205, 196, 169, 23, 101];
-      
+
       // Note that the challenge and the response both start with the same 3 bytes: 0x43 0x52 0x58
       onStatus(`Hashing the final password ${password.map(d => '0x' + d.toString(16)).join(' ')} into the response…`);
-      const response = [...challenge.slice(0, 3), ...md5(password)];
+      const response = [...challenge.slice(0, 3), ...md5WithCheck(password)];
 
       onStatus(`Calculating the check byte from the response ${response.map(d => '0x' + d.toString(16)).join(' ')}…`);
       let checkByte = 0;
@@ -207,10 +207,10 @@ window.addEventListener('load', _ => {
 
       onStatus('Obtaining the UART serial write characteristic…');
       const uartSerialWriteCharacteristic = await service.getCharacteristic('e659f3ff-ea98-11e3-ac10-0800200c9a66');
-  
+
       onStatus(`Writing to the response ${response.map(d => '0x' + d.toString(16)).join(' ')} to the UART serial write characteristic…`);
       await uartSerialWriteCharacteristic.writeValue(new Uint8Array(response));
-  
+
       onStatus('Waiting for a bit before starting to read the characteristics…');
       await new Promise(resolve => setTimeout(resolve, 500));
     }
@@ -224,20 +224,34 @@ window.addEventListener('load', _ => {
   }
 });
 
+// Note that we test our implementation of single-cycle MD5 against the original source to uncover mismatches if they exist
+function* md5WithCheck(bytes) {
+  const guttedMd5Bytes = [...gutted_md5(bytes)];
+  const guttedMd5String = gutted.map(h => h <= 15 ? '0' + h.toString(16) : h.toString(16)).join('');
+  const bytesString = bytes.map(b => String.fromCharCode(b)).join('');
+  // Note that this function comes from a `script` tag in `index.html`
+  const md5String = md5(bytesString);
+  if (guttedMd5String !== md5String) {
+    throw new Error('Mismatch in MD5! ' + bytesString);
+  }
+
+  yield* guttedMd5Bytes;
+}
+
 // This function is an adapted and simplified MD5 hash function which runs only a single cycle and works only for 55 bytes or less
 // It was adapted from http://www.myersdaily.org/joseph/javascript/md5.js, see http://www.myersdaily.org/joseph/javascript/md5-text.html for more info
 // [104, 101, 108, 108, 111] ("hello") => "5d41402abc4b2a76b9719d911017c592"
-function *md5(bytes) {
+function* gutted_md5(bytes) {
   if (bytes.length > 55 || bytes.find(b => !Number.isInteger(b) || b < 0 || b > 255)) {
-      throw new Error(`This MD5 function only works correctly for bytes arrays of 55 bytes or less.`);
+    throw new Error(`This MD5 function only works correctly for bytes arrays of 55 bytes or less.`);
   }
 
   const state = [1732584193, -271733879, -1732584194, 271733878]
   const tail = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let i = 0;
   while (i < bytes.length) {
-      tail[i >> 2] |= bytes[i] << ((i % 4) << 3);
-      i++;
+    tail[i >> 2] |= bytes[i] << ((i % 4) << 3);
+    i++;
   }
 
   tail[i >> 2] |= 0x80 << ((i % 4) << 3);
@@ -245,8 +259,8 @@ function *md5(bytes) {
 
   let [a, b, c, d] = state;
   const cmn = (q, a, b, x, s, t) => {
-      a = (((a + q) & 0xFFFFFFFF) + ((x + t) & 0xFFFFFFFF)) & 0xFFFFFFFF;
-      return (((a << s) | (a >>> (32 - s))) + b) & 0xFFFFFFFF;
+    a = (((a + q) & 0xFFFFFFFF) + ((x + t) & 0xFFFFFFFF)) & 0xFFFFFFFF;
+    return (((a << s) | (a >>> (32 - s))) + b) & 0xFFFFFFFF;
   };
 
   const ff = (a, b, c, d, x, s, t) => cmn((b & c) | ((~b) & d), a, b, x, s, t);
@@ -322,30 +336,30 @@ function *md5(bytes) {
   b = ii(b, c, d, a, tail[9], 21, -343485551);
 
   state[0] = (a + state[0]) & 0xFFFFFFFF;
-  for (let index = 0; index < 4; index ++) {
-      let byte = state[0] & 0xff;
-      yield byte;
-      state[0] = (state[0] - byte) / 256;
+  for (let index = 0; index < 4; index++) {
+    let byte = state[0] & 0xff;
+    yield byte;
+    state[0] = (state[0] - byte) / 256;
   }
 
   state[1] = (b + state[1]) & 0xFFFFFFFF;
-  for (let index = 0; index < 4; index ++) {
-      let byte = state[1] & 0xff;
-      yield byte;
-      state[1] = (state[1] - byte) / 256;
+  for (let index = 0; index < 4; index++) {
+    let byte = state[1] & 0xff;
+    yield byte;
+    state[1] = (state[1] - byte) / 256;
   }
 
   state[2] = (c + state[2]) & 0xFFFFFFFF;
-  for (let index = 0; index < 4; index ++) {
-      let byte = state[2] & 0xff;
-      yield byte;
-      state[2] = (state[2] - byte) / 256;
+  for (let index = 0; index < 4; index++) {
+    let byte = state[2] & 0xff;
+    yield byte;
+    state[2] = (state[2] - byte) / 256;
   }
 
   state[3] = (d + state[3]) & 0xFFFFFFFF;
-  for (let index = 0; index < 4; index ++) {
-      let byte = state[3] & 0xff;
-      yield byte;
-      state[3] = (state[3] - byte) / 256;
+  for (let index = 0; index < 4; index++) {
+    let byte = state[3] & 0xff;
+    yield byte;
+    state[3] = (state[3] - byte) / 256;
   }
 }
