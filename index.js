@@ -135,6 +135,7 @@ window.addEventListener('load', _ => {
     }
 
     statusDiv.textContent += message + '\n';
+    console.log(message);
   }
 
   async function unlock(service, onStatus) {
@@ -143,7 +144,8 @@ window.addEventListener('load', _ => {
 
     onStatus('Reading the firmware revision value from the firmware revision characteristic…');
     const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
-    onStatus(`Determining the type of Onewheel from the firmware revision ${[...new Uint8Array(firmwareRevision)].map(d => '0x' + d.toString(16)).join(' ')}…`);
+    console.log(firmwareRevision);
+    onStatus(`Determining the type of Onewheel from the firmware revision ${printDataView(firmwareRevision)}…`);
 
     if (firmwareRevision.byteLength !== 2) {
       onStatus('Found an unknown Onewheel type!');
@@ -183,20 +185,20 @@ window.addEventListener('load', _ => {
       await uartSerialReadCharacteristic.stopNotifications();
       uartSerialReadCharacteristic.removeEventListener('characteristicvaluechanged', onUartSerialReadCharacteristicChallengeValueChanged);
 
-      onStatus(`Ensuring that the challenge signature ${challenge.slice(0, 3).map(d => '0x' + d.toString(16)).join(' ')} matches the known signature 0x43 0x52 0x58…`);
+      onStatus(`Ensuring that the challenge signature ${printArray(challenge.slice(0, 3))} matches the known signature 43 52 58 (hex)…`);
       if (challenge[0] !== 67 || challenge[1] !== 82 || challenge[2] !== 88) {
         onStatus(`The challenge signature doesn't match!`);
         return;
       }
 
-      onStatus(`Joining the challenge sans the signature and check byte ${challenge.slice(3, -1).map(d => '0x' + d.toString(16)).join(' ')} and the known password 0xd9 0x25 0x5f 0x0f 0x23 0x35 0x4e 0x19 0xba 0x73 0x9c 0xcd 0xc4 0xa9 0x17 0x65…`);
+      onStatus(`Joining the challenge sans the signature and check byte ${printArray(challenge.slice(3, -1))} and the known password d9 25 5f 0f 23 35 4e 19 ba 73 9c cd c4 a9 17 65…`);
       const password = [...challenge.slice(3, -1), 217, 37, 95, 15, 35, 53, 78, 25, 186, 115, 156, 205, 196, 169, 23, 101];
 
       // Note that the challenge and the response both start with the same 3 bytes: 0x43 0x52 0x58
-      onStatus(`Hashing the final password ${password.map(d => '0x' + d.toString(16)).join(' ')} into the response…`);
+      onStatus(`Hashing the final password ${printArray(password)} into the response…`);
       const response = [...challenge.slice(0, 3), ...md5WithCheck(password)];
 
-      onStatus(`Calculating the check byte from the response ${response.map(d => '0x' + d.toString(16)).join(' ')}…`);
+      onStatus(`Calculating the check byte from the response ${printArray(response)}…`);
       let checkByte = 0;
       for (let index = 0; index < response.length; index++) {
         checkByte = response[index] ^ checkByte;
@@ -208,7 +210,7 @@ window.addEventListener('load', _ => {
       onStatus('Obtaining the UART serial write characteristic…');
       const uartSerialWriteCharacteristic = await service.getCharacteristic('e659f3ff-ea98-11e3-ac10-0800200c9a66');
 
-      onStatus(`Writing to the response ${response.map(d => '0x' + d.toString(16)).join(' ')} to the UART serial write characteristic…`);
+      onStatus(`Writing to the response ${printArray(response)} to the UART serial write characteristic…`);
       await uartSerialWriteCharacteristic.writeValue(new Uint8Array(response));
 
       onStatus('Waiting for a bit before starting to read the characteristics…');
@@ -224,10 +226,40 @@ window.addEventListener('load', _ => {
   }
 });
 
+function printDataView(dataView) {
+  const typedArray = new Uint8Array(dataView);
+  let result = '';
+  for (let element of typedArray) {
+    if (element < 10) {
+      result += '0';
+    }
+
+    result += element.toString(16);
+    result += ' ';
+  }
+
+  result += '(hex)';
+  return result;
+}
+
+function printArray(array) {
+  let result = '';
+  for (let element of array) {
+    if (element < 10) {
+      result += '0';
+    }
+
+    result += element.toString(16);
+  }
+
+  result += '(hex)';
+  return result;
+}
+
 // Note that we test our implementation of single-cycle MD5 against the original source to uncover mismatches if they exist
 function* md5WithCheck(bytes) {
   const guttedMd5Bytes = [...gutted_md5(bytes)];
-  const guttedMd5String = gutted.map(h => h <= 15 ? '0' + h.toString(16) : h.toString(16)).join('');
+  const guttedMd5String = guttedMd5Bytes.map(h => h <= 15 ? '0' + h.toString(16) : h.toString(16)).join('');
   const bytesString = bytes.map(b => String.fromCharCode(b)).join('');
   // Note that this function comes from a `script` tag in `index.html`
   const md5String = md5(bytesString);
