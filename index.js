@@ -1,9 +1,16 @@
 window.addEventListener('load', _ => {
+  const speedH2 = document.getElementById('speedH2');
+  const batteryH2 = document.getElementById('batteryH2');
+  const modeH2 = document.getElementById('modeH2');
+
   // Note that Web Blueooth must be initiated from a user gesture for security reasons
   const gestureButton = document.querySelector('#gestureButton');
   const statusDiv = document.querySelector('#statusDiv');
 
   gestureButton.addEventListener('click', async _ => {
+    gestureButton.remove();
+    statusDiv.textContent = '';
+
     // Note that Onewheels show up with the following name format: `ow#######`
     // Note the service UUID is reverse engineered and you can use the Chrome Bluetooth internals tab for debugging: chrome://bluetooth-internals/#devices
     report('Obtaining the device…');
@@ -15,18 +22,11 @@ window.addEventListener('load', _ => {
     report('Obtaining the primary service…');
     const service = await gattServer.getPrimaryService('e659f300-ea98-11e3-ac10-0800200c9a66');
 
-    async function reunlock() {
-      report('Initiating the unlock procedure…');
-      await unlock(service, report);
-      report();
+    report('Unlocking the board…');
+    await unlock(service, report);
 
-      const unlockDate = new Date();
-      unlockDate.setSeconds(unlockDate.getSeconds() + 15);
-      report(`Scheduling the next unlock for ${unlockDate.toLocaleTimeString()}…`);
-      window.setTimeout(reunlock, 15 * 1000);
-    }
-
-    reunlock();
+    report('Waiting for a bit before starting to read the characteristics…');
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     report('Subscribing all service characteristics for debugging…');
     const characteristics = await service.getCharacteristics();
@@ -79,6 +79,15 @@ window.addEventListener('load', _ => {
         case '00002a05-0000-1000-8000-00805f9b34fb': knownName = 'service changed'; break;
       }
 
+      if (knownName) {
+        window['characteristic_' + knownName.replace(/ /g, '_')] = characteristic;
+      }
+
+      // Do not show UART read/write - they flash too much
+      if (characteristic.uuid === 'e659f3fe-ea98-11e3-ac10-0800200c9a66' || characteristic.uuid === 'e659f3ff-ea98-11e3-ac10-0800200c9a66') {
+        continue;
+      }
+
       const characteristicDiv = document.createElement('div');
       characteristicDiv.className = 'characteristicDiv';
 
@@ -87,35 +96,58 @@ window.addEventListener('load', _ => {
       characteristicDiv.append(nameSpan);
 
       const valueSpan = document.createElement('span');
-      if (characteristic.value !== null) {
-        const value = [];
-        for (let index = 0; index < characteristic.value.byteLength; index++) {
-          value.push(characteristic.value.getUint8(index));
-        }
-
-        valueSpan.textContent = value.map(b => b.toString(16)).join(' ');
-      } else {
-        valueSpan.textContent = 'null';
-      }
-
+      valueSpan.textContent = characteristic.value !== null ? printDataView(characteristic.value) : 'null';
       characteristicDiv.append(valueSpan);
 
       const statusSpan = document.createElement('span');
       statusSpan.textContent = 'subscribing';
       characteristicDiv.append(statusSpan);
 
+      const forceValueSpan = document.createElement('span');
+      forceValueSpan.textContent = characteristic.value !== null ? printDataView(characteristic.value) : 'null';
+      characteristicDiv.append(forceValueSpan);
+
+      const forceStatusSpan = document.createElement('span');
+      forceStatusSpan.textContent = 'waiting';
+      characteristicDiv.append(forceStatusSpan);
+
       document.body.append(characteristicDiv);
 
+      // Subscribe the legit way
       try {
         await characteristic.startNotifications();
         characteristic.addEventListener('characteristicvaluechanged', event => {
           if (event.currentTarget.value !== null) {
-            const value = [];
-            for (let index = 0; index < event.currentTarget.value.byteLength; index++) {
-              value.push(event.currentTarget.value.getUint8(index));
+            if (event.currentTarget.value.byteLength == 2) {
+              valueSpan.textContent = event.currentTarget.value.getUint16();
+            } else {
+              valueSpan.textContent = printDataView(event.currentTarget.value);
             }
 
-            valueSpan.textContent = value.map(b => b.toString(16)).join(' ');
+            switch (characteristic.uuid) {
+              case 'e659f30b-ea98-11e3-ac10-0800200c9a66': {
+                const speed = (((35 * event.currentTarget.value.getUint16()) / 39370.1) * 60).toPrecision(2) + ' km/h';
+                speedH2.textContent = speed;
+                console.log(speed);
+                break;
+              }
+              case 'e659f303-ea98-11e3-ac10-0800200c9a66': {
+                batteryH2.textContent = event.currentTarget.value.getUint16() + ' %';
+                break;
+              }
+              case 'e659f302-ea98-11e3-ac10-0800200c9a66': {
+                // TODO: Find out what Delirium maps to
+                switch (event.currentTarget.value.getUint16()) {
+                  case 1: modeH2.textContent = 'classic'; break;
+                  case 2: modeH2.textContent = 'extreme'; break;
+                  case 3: modeH2.textContent = 'elevated'; break;
+                  case 4: modeH2.textContent = 'sequoia'; break;
+                  case 5: modeH2.textContent = 'cruz'; break;
+                  case 6: modeH2.textContent = 'mission'; break;
+                  default: modeH2.textContent = 'unknown mode #' + event.currentTarget.value.getUint16(); break;
+                }
+              }
+            }
           } else {
             valueSpan.textContent = 'null';
           }
@@ -125,111 +157,150 @@ window.addEventListener('load', _ => {
       } catch (error) {
         statusSpan.textContent = 'error';
       }
+
+      // Subscribe the force way
+      window.setInterval(async () => {
+        try {
+          forceValueSpan.textContent = printDataView(await characteristic.readValue());
+        } catch (error) {
+          forceStatusSpan.textContent = 'error';
+        }
+
+        forceStatusSpan.textContent = new Date().toLocaleTimeString();
+      }, 1000);
     }
   });
 
   function report(message) {
-    if (message === undefined) {
-      statusDiv.textContent = '';
-      return;
-    }
-
-    statusDiv.textContent += message + '\n';
-    console.log(message);
-  }
-
-  async function unlock(service, onStatus) {
-    onStatus('Obtaining the firmware revision characteristic…');
-    const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
-
-    onStatus('Reading the firmware revision value from the firmware revision characteristic…');
-    const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
-    console.log(firmwareRevision);
-    onStatus(`Determining the type of Onewheel from the firmware revision ${printDataView(firmwareRevision)}…`);
-
-    if (firmwareRevision.byteLength !== 2) {
-      onStatus('Found an unknown Onewheel type!');
-      return;
-    }
-
-    // TODO: Find all firmware revisions that exists
-    if (firmwareRevision.getUint8(0) === 22 && firmwareRevision.getUint8(1) === 56) {
-      onStatus('Found a Onewheel+ XR');
-    } else if (firmwareRevision.getUint8(0) === 16 && firmwareRevision.getUint8(1) === 38) {
-      onStatus('Found a Onewheel+ XR');
-    } else if (firmwareRevision.getUint8(0) === 15 && firmwareRevision.getUint8(1) === 194) {
-      onStatus('Found a Onewheel+');
-    } else {
-      onStatus('Found an unknown Onewheel type!');
-      return;
-    }
-
-    onStatus('Obtaining the UART serial read characteristic…');
-    const uartSerialReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
-
-    // Note that this is an array of bytes which should total 20 bytes
-    const challenge = [];
-
-    async function onUartSerialReadCharacteristicChallengeValueChanged(event) {
-      onStatus(`Collecting ${event.currentTarget.value.byteLength} bytes from the challenge UART read characteristic value…`);
-      for (let index = 0; index < event.currentTarget.value.byteLength; index++) {
-        challenge.push(event.currentTarget.value.getUint8(index));
-      }
-
-      if (challenge.length < 20) {
-        onStatus(`Waiting for ${20 - challenge.length} more bytes from the challenge UART read characteristic value…`);
-        return;
-      }
-
-      onStatus(`Unsubscribing from the UART serial read characteristic…`);
-      await uartSerialReadCharacteristic.stopNotifications();
-      uartSerialReadCharacteristic.removeEventListener('characteristicvaluechanged', onUartSerialReadCharacteristicChallengeValueChanged);
-
-      onStatus(`Ensuring that the challenge signature ${printArray(challenge.slice(0, 3))} matches the known signature 43 52 58 (hex)…`);
-      if (challenge[0] !== 67 || challenge[1] !== 82 || challenge[2] !== 88) {
-        onStatus(`The challenge signature doesn't match!`);
-        return;
-      }
-
-      onStatus(`Joining the challenge sans the signature and check byte ${printArray(challenge.slice(3, -1))} and the known password d9 25 5f 0f 23 35 4e 19 ba 73 9c cd c4 a9 17 65…`);
-      const password = [...challenge.slice(3, -1), 217, 37, 95, 15, 35, 53, 78, 25, 186, 115, 156, 205, 196, 169, 23, 101];
-
-      // Note that the challenge and the response both start with the same 3 bytes: 0x43 0x52 0x58
-      onStatus(`Hashing the final password ${printArray(password)} into the response…`);
-      const response = [...challenge.slice(0, 3), ...md5WithCheck(password)];
-
-      onStatus(`Calculating the check byte from the response ${printArray(response)}…`);
-      let checkByte = 0;
-      for (let index = 0; index < response.length; index++) {
-        checkByte = response[index] ^ checkByte;
-      }
-
-      onStatus(`Appending the check byte ${checkByte} to the response…`);
-      response.push(checkByte);
-
-      onStatus('Obtaining the UART serial write characteristic…');
-      const uartSerialWriteCharacteristic = await service.getCharacteristic('e659f3ff-ea98-11e3-ac10-0800200c9a66');
-
-      onStatus(`Writing to the response ${printArray(response)} to the UART serial write characteristic…`);
-      await uartSerialWriteCharacteristic.writeValue(new Uint8Array(response));
-
-      onStatus('Waiting for a bit before starting to read the characteristics…');
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    onStatus('Subscribing to the UART serial read characteristic…');
-    await uartSerialReadCharacteristic.startNotifications();
-    uartSerialReadCharacteristic.addEventListener('characteristicvaluechanged', onUartSerialReadCharacteristicChallengeValueChanged);
-
-    onStatus('Writing the firmware revision value to the firmware revision characteristic…');
-    await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
+    statusDiv.textContent = new Date().toLocaleTimeString() + ' ' + message + '\n' + statusDiv.textContent;
   }
 });
 
+async function unlock(service, report) {
+  report('Obtaining the firmware revision characteristic…');
+  const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
+
+  report('Reading the firmware revision value from the firmware revision characteristic…');
+  const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
+
+  report(`Determining the type of Onewheel from the firmware revision ${printDataView(firmwareRevision)}…`);
+  if (firmwareRevision.byteLength !== 2) {
+    report('Found an unknown Onewheel type!');
+    return;
+  }
+
+  // TODO: Find all firmware revisions that exists
+  // TODO: Use hex literals here
+  if (firmwareRevision.getUint8(0) === 22 && firmwareRevision.getUint8(1) === 56) {
+    report('Found a Onewheel+ XR');
+  } else if (firmwareRevision.getUint8(0) === 16 && firmwareRevision.getUint8(1) === 38) {
+    report('Found a Onewheel+ XR');
+  } else if (firmwareRevision.getUint8(0) === 15 && firmwareRevision.getUint8(1) === 194) {
+    report('Found a Onewheel+');
+  } else {
+    report('Found an unknown Onewheel type!');
+    return;
+  }
+
+  report('Obtaining the UART serial read characteristic…');
+  const uartSerialReadCharacteristic = await service.getCharacteristic('e659f3fe-ea98-11e3-ac10-0800200c9a66');
+
+  // Note that this is an array of bytes which should total 20 bytes
+  const challenge = [];
+
+  async function onUartSerialReadCharacteristicChallengeValueChanged(event) {
+    if (challenge.length === 20) {
+      // Ignore any messages received after the unlock challenge-response flow has been initiated and before the unsubscription took effect (does it ever?)
+      return;
+    }
+
+    report(`Collecting ${event.currentTarget.value.byteLength} bytes ${printDataView(event.currentTarget.value)} from the challenge UART read characteristic value…`);
+    for (let index = 0; index < event.currentTarget.value.byteLength; index++) {
+      challenge.push(event.currentTarget.value.getUint8(index));
+    }
+
+    if (challenge.length < 20) {
+      report(`Waiting for ${20 - challenge.length} more bytes (have ${challenge.length}) from the challenge UART read characteristic value…`);
+      return;
+    } else if (challenge.length > 20) {
+      report(`Bailing as the challenge exceeded the expected 20 bytes!`);
+      return;
+    } else {
+      report(`Proceeding with (${challenge.length}) bytes of the challenge UART read characteristic value…`);
+    }
+
+    report(`Unsubscribing from the UART serial read characteristic…`);
+    await uartSerialReadCharacteristic.stopNotifications();
+    uartSerialReadCharacteristic.removeEventListener('characteristicvaluechanged', onUartSerialReadCharacteristicChallengeValueChanged);
+
+    const signature = [0x43, 0x52, 0x58];
+
+    report(`Ensuring that the challenge signature ${printArray(challenge.slice(0, 3))} matches the known signature ${printArray(signature)}…`);
+    if (challenge[0] !== signature[0] || challenge[1] !== signature[1] || challenge[2] !== signature[2]) {
+      report(`The challenge signature doesn't match!`);
+      return;
+    }
+
+    const appendix = [0xd9, 0x25, 0x5f, 0x0f, 0x23, 0x35, 0x4e, 0x19, 0xba, 0x73, 0x9c, 0xcd, 0xc4, 0xa9, 0x17, 0x65];
+
+    report(`Joining the challenge without the signature with a check byte ${printArray(challenge.slice(3, -1))} and the known password ${printArray(appendix)}…`);
+    const password = [...challenge.slice(3, -1), 217, 37, 95, 15, 35, 53, 78, 25, 186, 115, 156, 205, 196, 169, 23, 101];
+
+    // Note that the challenge and the response both start with the same 3 bytes: 0x43 0x52 0x58
+    report(`Hashing the final password ${printArray(password)} into the response…`);
+    const response = [...challenge.slice(0, 3), ...md5(password)];
+
+    report(`Calculating the check byte from the response ${printArray(response)}…`);
+    let checkByte = 0;
+    for (let index = 0; index < response.length; index++) {
+      checkByte = response[index] ^ checkByte;
+    }
+
+    report(`Appending the check byte ${printArray([checkByte])} to the response…`);
+    response.push(checkByte);
+
+    report('Obtaining the UART serial write characteristic…');
+    const uartSerialWriteCharacteristic = await service.getCharacteristic('e659f3ff-ea98-11e3-ac10-0800200c9a66');
+
+    report(`Writing to the response ${printArray(response)} to the UART serial write characteristic…`);
+    await uartSerialWriteCharacteristic.writeValue(new Uint8Array(response));
+
+    // Start the loop that keeps the board unlocked
+    remind(firmwareRevisionCharacteristic, report);
+  }
+
+  report('Subscribing to the UART serial read characteristic…');
+  uartSerialReadCharacteristic.addEventListener('characteristicvaluechanged', onUartSerialReadCharacteristicChallengeValueChanged);
+  await uartSerialReadCharacteristic.startNotifications();
+
+  report('Writing the firmware revision value to the firmware revision characteristic…');
+  await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
+}
+
+async function remind(characteristic, report) {
+  report(`Reminding the board to stay unlocked…`);
+
+  try {
+    report('Reading the firmware revision value from the firmware revision characteristic…');
+    const firmwareRevision = await characteristic.readValue();
+
+    report('Writing the firmware revision value to the firmware revision characteristic…');
+    await characteristic.writeValue(firmwareRevision);
+  } catch (error) {
+    alert('Lost connection or failed to renew handshake');
+  }
+
+  const unlockDate = new Date();
+  unlockDate.setSeconds(unlockDate.getSeconds() + 15);
+
+  report(`Scheduling the unlock reminder for ${unlockDate.toLocaleTimeString()}…`);
+  window.setTimeout(remind, 15 * 1000, characteristic, report);
+}
+
 function printDataView(dataView) {
-  const typedArray = new Uint8Array(dataView);
   let result = '';
-  for (let element of typedArray) {
+  for (let index = 0; index < dataView.byteLength; index++) {
+    const element = dataView.getUint8(index);
     if (element < 10) {
       result += '0';
     }
@@ -250,30 +321,17 @@ function printArray(array) {
     }
 
     result += element.toString(16);
+    result += ' ';
   }
 
   result += '(hex)';
   return result;
 }
 
-// Note that we test our implementation of single-cycle MD5 against the original source to uncover mismatches if they exist
-function* md5WithCheck(bytes) {
-  const guttedMd5Bytes = [...gutted_md5(bytes)];
-  const guttedMd5String = guttedMd5Bytes.map(h => h <= 15 ? '0' + h.toString(16) : h.toString(16)).join('');
-  const bytesString = bytes.map(b => String.fromCharCode(b)).join('');
-  // Note that this function comes from a `script` tag in `index.html`
-  const md5String = md5(bytesString);
-  if (guttedMd5String !== md5String) {
-    throw new Error('Mismatch in MD5! ' + bytesString);
-  }
-
-  yield* guttedMd5Bytes;
-}
-
 // This function is an adapted and simplified MD5 hash function which runs only a single cycle and works only for 55 bytes or less
 // It was adapted from http://www.myersdaily.org/joseph/javascript/md5.js, see http://www.myersdaily.org/joseph/javascript/md5-text.html for more info
 // [104, 101, 108, 108, 111] ("hello") => "5d41402abc4b2a76b9719d911017c592"
-function* gutted_md5(bytes) {
+function* md5(bytes) {
   if (bytes.length > 55 || bytes.find(b => !Number.isInteger(b) || b < 0 || b > 255)) {
     throw new Error(`This MD5 function only works correctly for bytes arrays of 55 bytes or less.`);
   }

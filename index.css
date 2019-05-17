@@ -3,6 +3,8 @@ body {
 }
 
 #statusDiv {
+    height: 10vh;
+    overflow: auto;
     white-space: pre;
 }
 
