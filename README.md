@@ -1,12 +1,12 @@
 # Onewheel Web Bluetooth
 
+[**LIVE**](https://tomashubelbauer.github.io/onewheel-web-bluetooth)
+
 This repository demonstrates the use of Web Bluetooth for connecting to a Onewheel,
 carrying out the unlock mechanism and subscribing to the main service characteristics for debugging.
 
 This project will be extended to support visual and non-visual (vibrator, speaker)
 indicators of batter level, speed etc.
-
-[**DEMO**](https://tomashubelbauer.github.io/onewheel-web-bluetooth)
 
 ## How It Works
 
@@ -22,6 +22,14 @@ See `TODO` comments in code.
 
 The unlock mechanism works, but the periodical "reminder" to the board that we are still unlocked fails.
 I have not been able to pin down why that might be.
+
+The UWP-Onewheel project mentioned below doesn't have this issue.
+I need to adjust it to output some logging and then check android-ponewheel as
+well and adjust _that_ to output more logging and then compare both with what's
+happening in my implementation. I have some garbage coming in on the serial read
+UART which I don't think I should be seeing and maybe there are problems with
+unsubscribing from it (and writing to the UART serial write which cause the
+remind signal to get ignored).
 
 ## Related Projects
 
