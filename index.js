@@ -1,20 +1,30 @@
 window.addEventListener('load', _ => {
-  const speedH2 = document.getElementById('speedH2');
-  const batteryH2 = document.getElementById('batteryH2');
-  const modeH2 = document.getElementById('modeH2');
+  const speedInput = document.getElementById('speedInput');
+  const batteryInput = document.getElementById('batteryInput');
+  const modeInput = document.getElementById('modeInput');
+  const pitchInput = document.getElementById('pitchInput');
+  const rollInput = document.getElementById('rollInput');
+  const yawInput = document.getElementById('yawInput');
 
-  // Note that Web Blueooth must be initiated from a user gesture for security reasons
+  // Web Blueooth must be initiated from a user gesture for security reasons
   const gestureButton = document.querySelector('#gestureButton');
   const statusDiv = document.querySelector('#statusDiv');
 
   gestureButton.addEventListener('click', async _ => {
-    gestureButton.remove();
     statusDiv.textContent = '';
 
-    // Note that Onewheels show up with the following name format: `ow#######`
-    // Note the service UUID is reverse engineered and you can use the Chrome Bluetooth internals tab for debugging: chrome://bluetooth-internals/#devices
+    // Onewheels show up with the following name format: `ow#######`
+    // The service UUID is reverse engineered and you can use the Chrome
+    // Bluetooth internals tab for debugging: chrome://bluetooth-internals/#devices
     report('Obtaining the device…');
-    const bluetoothDevice = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'ow' }, { services: ['e659f300-ea98-11e3-ac10-0800200c9a66'] }] });
+    let bluetoothDevice;
+    try {
+      bluetoothDevice = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'ow' }, { services: ['e659f300-ea98-11e3-ac10-0800200c9a66'] }] });
+      gestureButton.remove();
+    } catch (error) {
+      report('Failed');
+      return;
+    }
 
     report('Connecting to the GATT server…');
     const gattServer = await bluetoothDevice.gatt.connect();
@@ -124,28 +134,41 @@ window.addEventListener('load', _ => {
               valueSpan.textContent = printDataView(event.currentTarget.value);
             }
 
-            switch (characteristic.uuid) {
-              case 'e659f30b-ea98-11e3-ac10-0800200c9a66': {
+            switch (knownName) {
+              case 'speed rpm': {
                 const speed = (((35 * event.currentTarget.value.getUint16()) / 39370.1) * 60).toPrecision(2) + ' km/h';
-                speedH2.textContent = speed;
-                console.log(speed);
+                speedInput.value = speed;
                 break;
               }
-              case 'e659f303-ea98-11e3-ac10-0800200c9a66': {
-                batteryH2.textContent = event.currentTarget.value.getUint16() + ' %';
+              case 'battery level': {
+                batteryInput.value = event.currentTarget.value.getUint16() + ' %';
                 break;
               }
-              case 'e659f302-ea98-11e3-ac10-0800200c9a66': {
+              case 'riding mode': {
                 // TODO: Find out what Delirium maps to
                 switch (event.currentTarget.value.getUint16()) {
-                  case 1: modeH2.textContent = 'classic'; break;
-                  case 2: modeH2.textContent = 'extreme'; break;
-                  case 3: modeH2.textContent = 'elevated'; break;
-                  case 4: modeH2.textContent = 'sequoia'; break;
-                  case 5: modeH2.textContent = 'cruz'; break;
-                  case 6: modeH2.textContent = 'mission'; break;
-                  default: modeH2.textContent = 'unknown mode #' + event.currentTarget.value.getUint16(); break;
+                  case 1: modeInput.value = 'classic'; break;
+                  case 2: modeInput.value = 'extreme'; break;
+                  case 3: modeInput.value = 'elevated'; break;
+                  case 4: modeInput.value = 'sequoia'; break;
+                  case 5: modeInput.value = 'cruz'; break;
+                  case 6: modeInput.value = 'mission'; break;
+                  default: modeInput.value = 'unknown mode #' + event.currentTarget.value.getUint16(); break;
                 }
+
+                break;
+              }
+              case 'pitch': {
+                pitchInput.value = event.currentTarget.value.getUint16();
+                break;
+              }
+              case 'roll': {
+                rollInput.value = event.currentTarget.value.getUint16();
+                break;
+              }
+              case 'yaw': {
+                yawInput.value = event.currentTarget.value.getUint16();
+                break;
               }
             }
           } else {
@@ -177,8 +200,20 @@ window.addEventListener('load', _ => {
 });
 
 async function unlock(service, report) {
+  // Clear the log the hacky way now that we're using unlocks instead of reminds
+  document.getElementById('statusDiv').innerHTML = '';
+
   report('Obtaining the firmware revision characteristic…');
-  const firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
+  let firmwareRevisionCharacteristic;
+  try {
+    firmwareRevisionCharacteristic = await service.getCharacteristic('e659f311-ea98-11e3-ac10-0800200c9a66');
+  } catch (error) {
+    report('Failed');
+
+    // Retry
+    window.setTimeout(unlock, 10 * 1000, service, report);
+    return;
+  }
 
   report('Reading the firmware revision value from the firmware revision characteristic…');
   const firmwareRevision = await firmwareRevisionCharacteristic.readValue();
@@ -238,6 +273,9 @@ async function unlock(service, report) {
     report(`Ensuring that the challenge signature ${printArray(challenge.slice(0, 3))} matches the known signature ${printArray(signature)}…`);
     if (challenge[0] !== signature[0] || challenge[1] !== signature[1] || challenge[2] !== signature[2]) {
       report(`The challenge signature doesn't match!`);
+
+      // Retry
+      window.setTimeout(unlock, 10 * 1000, service, report);
       return;
     }
 
@@ -264,9 +302,6 @@ async function unlock(service, report) {
 
     report(`Writing to the response ${printArray(response)} to the UART serial write characteristic…`);
     await uartSerialWriteCharacteristic.writeValue(new Uint8Array(response));
-
-    // Start the loop that keeps the board unlocked
-    remind(firmwareRevisionCharacteristic, report);
   }
 
   report('Subscribing to the UART serial read characteristic…');
@@ -274,7 +309,18 @@ async function unlock(service, report) {
   await uartSerialReadCharacteristic.startNotifications();
 
   report('Writing the firmware revision value to the firmware revision characteristic…');
-  await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
+  try {
+    await firmwareRevisionCharacteristic.writeValue(firmwareRevision);
+  } catch (error) {
+    report('Failed');
+  }
+
+  // TODO: Figure out why this won't work
+  // Start the loop that keeps the board unlocked
+  //remind(firmwareRevisionCharacteristic, report);
+
+  // Brute-force the connection by just reconnecting all the time
+  window.setTimeout(unlock, 10 * 1000, service, report);
 }
 
 async function remind(characteristic, report) {
@@ -287,7 +333,7 @@ async function remind(characteristic, report) {
     report('Writing the firmware revision value to the firmware revision characteristic…');
     await characteristic.writeValue(firmwareRevision);
   } catch (error) {
-    alert('Lost connection or failed to renew handshake');
+    report('Lost connection or failed to renew handshake');
   }
 
   const unlockDate = new Date();
@@ -328,8 +374,10 @@ function printArray(array) {
   return result;
 }
 
-// This function is an adapted and simplified MD5 hash function which runs only a single cycle and works only for 55 bytes or less
-// It was adapted from http://www.myersdaily.org/joseph/javascript/md5.js, see http://www.myersdaily.org/joseph/javascript/md5-text.html for more info
+// This function is an adapted and simplified MD5 hash function which runs only
+// a single cycle and works only for 55 bytes or less
+// It was adapted from http://www.myersdaily.org/joseph/javascript/md5.js, see
+// http://www.myersdaily.org/joseph/javascript/md5-text.html for more info
 // [104, 101, 108, 108, 111] ("hello") => "5d41402abc4b2a76b9719d911017c592"
 function* md5(bytes) {
   if (bytes.length > 55 || bytes.find(b => !Number.isInteger(b) || b < 0 || b > 255)) {

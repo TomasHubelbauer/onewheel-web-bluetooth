@@ -63,7 +63,7 @@ const challengeBytes = challengeText.match(/.{2}/g).map(b => Number.parseInt(b, 
 const signatureBytes = challengeBytes.slice(0, 3);
 const signatureText = signatureBytes.map(b => b.toString(16)).join(' ');
 console.log('sig', signatureText);
-const restBytes = challengeBytes.slice(3, -1); // Except last, should be 16
+const restBytes = challengeBytes.slice(3, -1); // Except last byte, should be 16
 const restText = restBytes.map(b => b.toString(16)).join(' ') + ' = ' + restBytes.length;
 console.log('rest', restText);
 const passwordBytes = [217, 37, 95, 15, 35, 53, 78, 25, 186, 115, 156, 205, 196, 169, 23, 101];
