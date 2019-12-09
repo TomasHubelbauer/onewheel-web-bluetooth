@@ -93,3 +93,7 @@ for (let index = 0; index < responseBytes.length; index++) {
 
 console.log('check byte', checkByte.toString(16));
 ```
+
+## To-Do
+
+### Try connecting to Pint
